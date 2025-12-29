@@ -1,6 +1,8 @@
 #include <tusb.h>
 #include <pico/multicore.h>
 #include "pico/bootrom.h"
+#include "pico/stdlib.h"
+#include "hardware/clocks.h"
 #include "board.h"
 #include "fan_control.h"
 #include "host_communication.h"

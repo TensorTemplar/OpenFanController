@@ -53,7 +53,25 @@ void fan_control_init(void)
         emc230x_config_fans();
     }
 
-    // Set all fans to 1k RPM
+    // Staggered startup: start each fan sequentially at low PWM to reduce inrush current
+    // This is critical for high-current server fans (2A+) to avoid PSU overload
+    Logger_INFO("Starting staggered fan startup (%d%% PWM, %dms delay)",
+                FAN_STARTUP_PWM, FAN_STAGGER_DELAY_MS);
+
+    uint8_t startup_pwm_raw = (FAN_STARTUP_PWM * 255) / 100;  // Convert % to 0-255
+
+    for (uint8_t i=0; i<NUM_TOTAL_FAN; i++)
+    {
+        Logger_INFO("Starting fan %d", i+1);
+        fan_control_set_fan_pwm(i, startup_pwm_raw);
+        sleep_ms(FAN_STAGGER_DELAY_MS);
+    }
+
+    // Brief settle time after all fans spinning
+    sleep_ms(FAN_STARTUP_RAMP_MS);
+
+    // Now set to normal operating RPM
+    Logger_INFO("Staggered startup complete, setting target RPM");
     for (uint8_t i=0; i<NUM_TOTAL_FAN; i++)
     {
         fan_control_set_fan_rpm(i, 1000);

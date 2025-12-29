@@ -11,6 +11,12 @@
 #define EMC_CTRL_2_ADDRESS  0x2D
 #define EMC_CTRL_2_FAN_CNT  5
 
+// Staggered startup configuration for high-current server fans
+// Reduces inrush current by starting fans sequentially
+#define FAN_STAGGER_DELAY_MS    300     // Delay between each fan startup (ms)
+#define FAN_STARTUP_PWM         30      // Initial PWM % during staggered startup
+#define FAN_STARTUP_RAMP_MS     500     // Time to ramp from startup PWM to target
+
 void fan_control_init(void);
 void fan_periodic_tick(void);
 void fan_control_read_fan_rpm(uint8_t fan, uint16_t *pRPM);

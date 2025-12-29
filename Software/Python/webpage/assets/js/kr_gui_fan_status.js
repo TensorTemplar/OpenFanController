@@ -151,8 +151,8 @@ function gui_new_profile_handle_control_switch()
 {
     const control_option = $('input[name="fan-control-option"]:checked').val();
     let min = 0;
-    let max = 3000;
-    let step = 5;
+    let max = 16000;
+    let step = 50;
     let current_val = 1000;
 
     if (control_option != 'rpm')
@@ -368,10 +368,10 @@ function radio_control_via_rpm_handler()
         $('label[for="control_via_rpm"]').text('Control in RPM (Revolutions Per Minute)');
         $("#fan_value").attr({
            "min" : 500,
-           "max" : 3000,
-           "step": 50
+           "max" : 16000,
+           "step": 100
         });
-        $("#fan_value").val(1000);
+        $("#fan_value").val(6000);
     }
     else
     {

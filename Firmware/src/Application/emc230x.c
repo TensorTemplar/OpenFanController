@@ -24,6 +24,14 @@
 #define EMC230X_TACH_CNT_MULTIPLIER     0x02
 #define EMC230X_TACH_RANGE_MIN          480
 
+// Tach range selection for FAN_CONFIG register bits 5-6
+// Range 0: 500 RPM min (for standard PC fans)
+// Range 1: 1000 RPM min (for high-speed server fans 6k-12k RPM)
+// Range 2: 2000 RPM min
+// Range 3: 4000 RPM min
+#define EMC230X_TACH_RANGE              1   // Use Range 1 for server fans
+#define EMC230X_RANGE_BITS              (EMC230X_TACH_RANGE << 5)
+
 /*
  * Factor by equations [2] and [3] from data sheet; valid for fans where the number of edges
  * equal (poles * 2 + 1).
@@ -63,9 +71,11 @@ void emc230x_config_fans(void)
 {
     for(uint8_t i=0; i<EMC230X_DEVICE_MAX_CHANNELS; i++)
     {
-        // emc230x_write_register(EMC2305_REG_FAN_CONFIG(i), 0x2B);
+        // Set FAN_CONFIG: Range bits (5-6) for high-RPM server fans
+        // 0x09 = base config, OR with range bits
+        emc230x_write_register(EMC2305_REG_FAN_CONFIG(i), 0x09 | EMC230X_RANGE_BITS);
 
-        // Enabel Tach filter, both methods of control, 50 PRM tolerance
+        // Enable Tach filter, both methods of control, 50 RPM tolerance
         emc230x_write_register(EMC2305_REG_FAN_CONFIG2(i), 0x58);
     }
 }
@@ -161,10 +171,12 @@ void emc230x_set_target_rpm(uint8_t channel, uint16_t nRPM)
 
     Logger_INFO("Setting RPM to %d (H:0x%02X L:0x%02X)", nRPM, high, low);
 
-    emc230x_write_register(EMC2305_REG_FAN_CONFIG(channel), 0x09);
+    // Disable RPM algorithm, preserve range bits
+    emc230x_write_register(EMC2305_REG_FAN_CONFIG(channel), 0x09 | EMC230X_RANGE_BITS);
     emc230x_write_register(EMC230X_REG_FAN_TARGET_TACH_L(channel), low);
     emc230x_write_register(EMC230X_REG_FAN_TARGET_TACH_H(channel), high);
-    emc230x_write_register(EMC2305_REG_FAN_CONFIG(channel), 0x89);
+    // Enable RPM algorithm (bit 7), preserve range bits
+    emc230x_write_register(EMC2305_REG_FAN_CONFIG(channel), 0x89 | EMC230X_RANGE_BITS);
 }
 
 
@@ -177,11 +189,8 @@ void emc230x_set_pwm(uint8_t channel, uint8_t nPWM)
         return;
     }
 
-    // Disable tach
-    uint8_t reg;
-    emc230x_read_register(EMC2305_REG_FAN_CONFIG(channel), &reg);
-    reg = reg & 0x7F;
-    emc230x_write_register(EMC2305_REG_FAN_CONFIG(channel), reg);
+    // Disable RPM algorithm (bit 7), preserve range bits for accurate tach readings
+    emc230x_write_register(EMC2305_REG_FAN_CONFIG(channel), 0x09 | EMC230X_RANGE_BITS);
 
     nLen = 0;
     txBuff[nLen++] = EMC2305_REG_FAN_DRIVE(channel);
@@ -237,6 +246,12 @@ static uint16_t register_data_to_rpm(uint8_t high, uint8_t low, uint8_t range)
 
     tach = ((high<<8) | (low));
     tach = tach >> EMC230X_TACH_REGS_UNUSE_BITS;
+
+    // Prevent division by zero - invalid tach reading
+    if (tach == 0)
+    {
+        return 0;
+    }
 
     if(range < 1)
     {

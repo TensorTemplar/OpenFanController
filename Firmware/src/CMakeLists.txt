@@ -30,9 +30,10 @@ target_include_directories(pico_project_port PUBLIC
 
 target_link_libraries(pico_project_port
 	hardware_flash
+	hardware_clocks
 	pico_multicore
 	pico_stdlib
-    hardware_i2c
+	hardware_i2c
 	tinyusb_device)
 
 pico_add_extra_outputs(pico_project_port)
